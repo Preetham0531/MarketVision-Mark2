@@ -436,15 +436,10 @@ def create_volume_chart(hist_data, symbol):
     ))
     
     fig.update_layout(
-        title=f'{symbol} Volume Chart',
-        yaxis_title='Volume',
+        title=f'Volume Chart for {symbol}',
         xaxis_title='Date',
-        template='plotly_dark',
-        height=500,
-        showlegend=True,
-        plot_bgcolor='#1a1a1a',
-        paper_bgcolor='#1a1a1a',
-        font=dict(color='white')
+        yaxis_title='Volume',
+        template='plotly_dark'
     )
     
     return fig
@@ -895,25 +890,11 @@ def show_technical_analysis(hist_data):
             latest_signal = df_with_indicators['macd_signal_line'].iloc[-1]
             
             macd_color = "#00ff00" if latest_macd > latest_signal else "#ff0000"
-            macd_status = "Bullish" if latest_macd > latest_signal else "Bearish"
+            macd_status = "Bullish Crossover" if latest_macd > latest_signal else "Bearish Crossover"
             
             st.markdown(f"""
-            <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 1.2rem;">
-                <h3 style="color: #ecf0f1; margin: 0;">MACD Line</h3>
-                <h2 style="color: white; margin: 10px 0;">{latest_macd:.4f}</h2>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            st.markdown(f"""
-            <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 1.2rem;">
-                <h3 style="color: #ecf0f1; margin: 0;">Signal Line</h3>
-                <h2 style="color: white; margin: 10px 0;">{latest_signal:.4f}</h2>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            st.markdown(f"""
-            <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 1.2rem;">
-                <h3 style="color: {macd_color}; margin: 0;">{macd_status} MACD</h3>
+            <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin: 1rem 0;">
+                <p style="color: {macd_color}; margin: 0; font-size: 1.2rem;">{macd_status}</p>
             </div>
             """, unsafe_allow_html=True)
 
@@ -938,42 +919,37 @@ def show_market_sentiment(symbol):
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if 'avg_sentiment_score' in df_with_indicators.columns:
-            latest_sentiment = df_with_indicators['avg_sentiment_score'].iloc[-1]
-            
-            sentiment_color = "#00ff00" if latest_sentiment > 0.1 else "#ff0000" if latest_sentiment < -0.1 else "#ffff00"
-            sentiment_status = "Positive" if latest_sentiment > 0.1 else "Negative" if latest_sentiment < -0.1 else "Neutral"
-            
-            st.markdown(f"""
-            <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e;">
-                <h3 style="color: #ecf0f1; margin: 0;">Average Sentiment Score</h3>
-                <h2 style="color: {sentiment_color}; margin: 10px 0;">{latest_sentiment:.3f}</h2>
-                <p style="color: {sentiment_color}; margin: 0; font-weight: bold;">{sentiment_status}</p>
-            </div>
-            """, unsafe_allow_html=True)
-    
+        sentiment_color = "#00ff00" if latest_sentiment > 0.1 else "#ff0000" if latest_sentiment < -0.1 else "#ffff00"
+        sentiment_status = "Positive" if latest_sentiment > 0.1 else "Negative" if latest_sentiment < -0.1 else "Neutral"
+        
+        st.markdown(f"""
+        <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e;">
+            <p style="color: #ecf0f1; margin: 0; font-size: 1.2rem;">Avg. Sentiment Score</p>
+            <p style="color: {sentiment_color}; margin: 0; font-size: 2.5rem; font-weight: bold;">{latest_sentiment:.3f}</p>
+            <p style="color: {sentiment_color}; margin: 0; font-weight: bold;">{sentiment_status}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
     with col2:
-        if 'social_mention_count_7_day' in df_with_indicators.columns:
-            mentions = df_with_indicators['social_mention_count_7_day'].iloc[-1]
-            st.markdown(f"""
-            <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e;">
-                <h3 style="color: #ecf0f1; margin: 0;">Social Mentions (7-day)</h3>
-                <h2 style="color: white; margin: 10px 0;">{mentions:,}</h2>
-            </div>
-            """, unsafe_allow_html=True)
-    
+        st.markdown(f"""
+        <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e;">
+            <p style="color: #ecf0f1; margin: 0; font-size: 1.2rem;">Social Mentions (7-day)</p>
+            <p style="color: #ffffff; margin: 0; font-size: 2.5rem; font-weight: bold;">{mentions}</p>
+            <p style="color: #bdc3c7; margin: 0;">Total Mentions</p>
+        </div>
+        """, unsafe_allow_html=True)
+
     with col3:
-        if 'probability_price_increase_next_day' in df_with_indicators.columns:
-            prob = df_with_indicators['probability_price_increase_next_day'].iloc[-1]
-            
-            prob_color = "#00ff00" if prob > 0.6 else "#ff0000" if prob < 0.4 else "#ffff00"
-            
-            st.markdown(f"""
-            <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e;">
-                <h3 style="color: #ecf0f1; margin: 0;">Price Increase Probability</h3>
-                <h2 style="color: {prob_color}; margin: 10px 0;">{prob:.1%}</h2>
-            </div>
-            """, unsafe_allow_html=True)
+        prob_color = "#00ff00" if prob > 0.6 else "#ff0000" if prob < 0.4 else "#ffff00"
+        prob_status = "Likely Increase" if prob > 0.6 else "Likely Decrease" if prob < 0.4 else "Uncertain"
+        
+        st.markdown(f"""
+        <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e;">
+            <p style="color: #ecf0f1; margin: 0; font-size: 1.2rem;">Price Increase Prob.</p>
+            <p style="color: {prob_color}; margin: 0; font-size: 2.5rem; font-weight: bold;">{prob:.1%}</p>
+            <p style="color: {prob_color}; margin: 0; font-weight: bold;">{prob_status}</p>
+        </div>
+        """, unsafe_allow_html=True)
 
 def show_model_details(metadata):
     st.markdown('<h2 class="sub-header">Model Architecture & Details</h2>', unsafe_allow_html=True)
@@ -1021,110 +997,66 @@ def show_model_details(metadata):
         """, unsafe_allow_html=True)
 
 def show_about_page():
-    st.markdown('<h2 class="sub-header">About MarketVision</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 class="sub-header">About MarketVision Pro</h2>', unsafe_allow_html=True)
     
     st.markdown("""
-    <div style="padding: 1.5rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 2rem;">
-        <h3 style="color: #ecf0f1;">Project Overview</h3>
-        <p style="color: #bdc3c7;">MarketVision is an advanced AI-powered stock market prediction system designed specifically for the Indian stock market. 
-        It combines multiple data sources and sophisticated machine learning algorithms to provide comprehensive market insights.</p>
+    <div style="padding: 1.5rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e;">
+        <p style="color: #ecf0f1;"><strong>MarketVision Pro</strong> is a sophisticated financial analysis tool designed to empower investors with AI-driven insights into the Indian stock market. It combines real-time market data, advanced technical indicators, and cutting-edge machine learning models to deliver comprehensive stock analysis and future price predictions.</p>
+        
+        <h4 style="color: #ffffff; border-bottom: 2px solid #3498db; padding-bottom: 0.5rem; margin-top: 1.5rem;">Key Features:</h4>
+        <ul style="color: #bdc3c7;">
+            <li><strong>Live Market Dashboard:</strong> Real-time price tracking and key performance metrics.</li>
+            <li><strong>AI-Powered Predictions:</strong> Uses a Multi-Output LightGBM model to forecast future price direction and volatility.</li>
+            <li><strong>In-Depth Technical Analysis:</strong> Automated calculation and visualization of crucial indicators like RSI and MACD.</li>
+            <li><strong>Dynamic Market Sentiment:</strong> (Future Feature) Real-time news and social media sentiment analysis.</li>
+            <li><strong>Robust & Scalable:</strong> Built with a modern tech stack designed for performance and reliability.</li>
+        </ul>
     </div>
     """, unsafe_allow_html=True)
-    
-    st.markdown('<h3>Key Features</h3>', unsafe_allow_html=True)
-    
-    features = [
-        "Multi-timeframe Predictions: 1-day, 5-day, weekly, and monthly forecasts",
-        "Technical Analysis: 20+ technical indicators including RSI, MACD, Bollinger Bands",
-        "Sentiment Analysis: News sentiment and social media analysis",
-        "Fundamental Data: Financial ratios and company fundamentals",
-        "Market Context: Global market indicators and sector performance",
-        "Trading Signals: Buy/Sell/Hold recommendations with confidence scores",
-        "Risk Assessment: Volatility prediction and risk metrics",
-        "Real-time Data: Live market data integration"
-    ]
-    
-    for feature in features:
-        st.markdown(f"• {feature}")
-    
-    st.warning("""
-    **Important Disclaimer**: This application is for educational and research purposes only. 
-    The predictions and recommendations provided are based on historical data and machine learning models, 
-    and should not be considered as financial advice. Always consult with a qualified financial advisor 
-    before making investment decisions. Past performance does not guarantee future results.
-    """)
 
 def show_cheatsheet():
-    st.markdown('<h2 class="sub-header">MarketVision Cheatsheet</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 class="sub-header">MarketVision Cheatsheet & Guide</h2>', unsafe_allow_html=True)
 
     st.markdown("""
+    <div style="padding: 1.5rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 1rem;">
+        <p style="color: #ecf0f1;">Welcome to the MarketVision guide. This cheatsheet explains the project's architecture and how to use the app effectively.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Project Architecture
+    st.markdown('<h3>Project Architecture</h3>', unsafe_allow_html=True)
+    st.markdown("""
     <div style="padding: 1.5rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 2rem;">
-        <h3 style="color: #ecf0f1; border-bottom: 2px solid #3498db; padding-bottom: 0.5rem;">How MarketVision Works: A Deep Dive</h3>
-        <p style="color: #bdc3c7; font-size: 16px;">MarketVision is a sophisticated AI system that analyzes multiple layers of financial data to predict stock price movements. Here's a step-by-step breakdown of its workflow:</p>
-        <ol style="color: #bdc3c7; font-size: 16px; line-height: 1.8;">
-            <li><strong>Data Collection:</strong> The system gathers a wide array of data, including historical stock prices, global market indices (like NIFTY 50, S&P 500), technical indicators, company fundamentals, and real-time news sentiment.</li>
-            <li><strong>Feature Engineering:</strong> Raw data is processed to create meaningful features. This includes calculating over 40 technical indicators (RSI, MACD, etc.), analyzing news sentiment scores, and computing market context variables like beta and sector performance.</li>
-            <li><strong>Model Training:</strong> The processed features are fed into a powerful LightGBM (Light Gradient Boosting Machine) model. This model is trained on historical data to recognize complex patterns that correlate with future price movements. It learns to predict multiple outcomes simultaneously, such as next-day price, weekly trends, and volatility.</li>
-            <li><strong>Live Prediction:</strong> When you select a stock, the app fetches the latest market data, processes it through the same pipeline, and feeds it to the trained model to generate live predictions.</li>
-            <li><strong>Visualization:</strong> The results are presented through interactive charts and easy-to-understand dashboards, helping you make informed decisions.</li>
+        <p style="color: #bdc3c7;">The application operates in a structured workflow:</p>
+        <ol style="color: #bdc3c7;">
+            <li><strong>Data Collection:</strong> Live market data (prices, volume) is fetched using the yfinance library. Fundamental data and news sentiment are intended to be fetched via premium APIs (FMP, NewsAPI).</li>
+            <li><strong>Feature Engineering:</strong> The application calculates a suite of technical indicators (RSI, MACD, Bollinger Bands, etc.) from the raw price data. These indicators serve as features for the machine learning model.</li>
+            <li><strong>Model Training (Offline):</strong> A Multi-Output LightGBM model is trained on a comprehensive historical dataset. This model learns the complex relationships between technical indicators, market context, and future price movements. It's trained to predict multiple targets simultaneously: price direction (up/down), target price, and stop-loss levels.</li>
+            <li><strong>Live Prediction:</strong> In the app, the live data is processed to generate the same features the model was trained on. This feature set is then fed into the pre-trained model to generate real-time predictions.</li>
+            <li><strong>Visualization:</strong> All data, analysis, and predictions are presented through an interactive dashboard built with Streamlit and Plotly.</li>
         </ol>
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown('<h3>How to Use Each Section</h3>', unsafe_allow_html=True)
-    
+    # How to Use This App
+    st.markdown('<h3>How to Use This App</h3>', unsafe_allow_html=True)
     st.markdown("""
     <div style="padding: 1.5rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 2rem;">
-        <h4 style="color: #ecf0f1;">Dashboard</h4>
-        <p style="color: #bdc3c7;">The main dashboard is your mission control. It gives you a high-level snapshot of the market and the selected stock.</p>
-        <ul>
-            <li style="color: #bdc3c7;"><strong>Market Overview:</strong> Check key model metrics here. High accuracy and low error suggest the model is confident. See how many features the model uses to make its decisions.</li>
-            <li style="color: #bdc3c7;"><strong>Live Market Data:</strong> Get the latest price, volume, and daily high/low. Red and green colors instantly show you the price direction.</li>
-            <li style="color: #bdc3c7;"><strong>Chart Analysis:</strong> This is your primary tool for visual analysis. Switch between Candlestick, Line, Area, and Volume charts to spot trends, patterns, and support/resistance levels. Each chart tells a different story about the stock's behavior.</li>
+        <ul style="color: #bdc3c7;">
+            <li><strong>Select a Stock:</strong> Use the sidebar to either type a stock symbol (e.g., 'TCS.NS') or choose a company from the NIFTY50 dropdown list.</li>
+            <li><strong>Dashboard:</strong> Get a quick overview of the current market status for the selected stock, including live price, daily change, and various price charts.</li>
+            <li><strong>Live Predictions:</strong> This is the core feature. Select a prediction horizon (e.g., 1 day, 5 days) and click "Predict" to see what the AI model forecasts. The results will show the predicted direction, target price, and a recommended stop-loss.</li>
+            <li><strong>Model Performance:</strong> View the historical performance metrics of the trained AI model, such as Accuracy for directional prediction and Mean Absolute Error for price targets. This helps you understand the model's reliability.</li>
+            <li><strong>Technical Analysis:</strong> Explore detailed charts of key technical indicators like RSI and MACD. This section provides the underlying data used by the model for its predictions.</li>
+            <li><strong>Find NSE Symbol:</strong> If you don't know a stock's symbol, use this tool to find it by typing the company's name.</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
     
-    st.markdown("""
-    <div style="padding: 1.5rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 2rem;">
-        <h4 style="color: #ecf0f1;">Live Predictions</h4>
-        <p style="color: #bdc3c7;">This is where the AI does its magic. Select a prediction horizon (e.g., 1-day, 5-day) to see the model's forecast.</p>
-        <ul>
-            <li style="color: #bdc3c7;"><strong>Prediction Summary:</strong> A clear BUY, SELL, or HOLD recommendation based on the model's analysis. The confidence score tells you how certain the model is.</li>
-            <li style="color: #bdc3c7;"><strong>Price Targets:</strong> See the exact price the model predicts for the end of the selected period. The expected change is shown in both absolute and percentage terms for quick assessment.</li>
-            <li style="color: #bdc3c7;"><strong>Risk Assessment:</strong> The model estimates future volatility and provides recommended Stop-Loss and Take-Profit levels. This is crucial for risk management.</li>
-            <li style="color: #bdc3c7;"><strong>Top Influencing Factors:</strong> Understand *why* the model made its prediction. This section lists the top 3 data points (e.g., RSI, news sentiment) that influenced the forecast, providing transparency.</li>
-        </ul>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <div style="padding: 1.5rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 2rem;">
-        <h4 style="color: #ecf0f1;">Technical Analysis</h4>
-        <p style="color: #bdc3c7;">Dive deeper into the technicals that drive price action. This section provides a detailed view of key indicators.</p>
-        <ul>
-            <li style="color: #bdc3c7;"><strong>RSI Analysis:</strong> The Relative Strength Index (RSI) helps you spot overbought (>70) or oversold (<30) conditions. A stock that is overbought might be due for a price correction, while an oversold stock could be a buying opportunity.</li>
-            <li style="color: #bdc3c7;"><strong>MACD Analysis:</strong> The Moving Average Convergence Divergence (MACD) indicates trend momentum. When the MACD line crosses above the Signal line, it's a bullish sign. When it crosses below, it's bearish.</li>
-        </ul>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <div style="padding: 1.5rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 2rem;">
-        <h4 style="color: #ecf0f1;">Market Sentiment</h4>
-        <p style="color: #bdc3c7;">Understand the "mood" of the market. This section analyzes news and social media to gauge public opinion.</p>
-        <ul>
-            <li style="color: #bdc3c7;"><strong>Sentiment Score:</strong> A value from -1 (very negative) to +1 (very positive). Strong positive sentiment can drive prices up, while negative sentiment can pull them down.</li>
-            <li style="color: #bdc3c7;"><strong>Social Mentions:</strong> Shows how much "buzz" a stock is getting. A spike in mentions can sometimes precede a significant price move.</li>
-            <li style="color: #bdc3c7;"><strong>Price Increase Probability:</strong> The model's calculated likelihood that the stock price will go up the next day, based on sentiment and other factors.</li>
-        </ul>
-    </div>
-    """, unsafe_allow_html=True)
-
     st.markdown("""
     <div style="padding: 1.5rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 2rem;">
         <h4 style="color: #ecf0f1;">Find NSE Symbol</h4>
-        <p style="color: #bdc3c7;">Don't know the ticker symbol for a company? No problem. Just type the company name here, and the tool will find the correct NSE symbol for you. It uses fuzzy matching, so you don't have to be exact.</p>
+        <p style="color: #bdc3c7;">Type a company name to get the correct NSE stock symbol. For example, try "Narayana Hrudayalaya" or "Tata Consultancy".</p>
     </div>
     """, unsafe_allow_html=True)
 
