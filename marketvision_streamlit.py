@@ -463,6 +463,7 @@ def calculate_live_indicators(df):
     return df
 
 def generate_advanced_prediction(symbol, live_data, horizon, include_sentiment=True, include_fundamentals=True):
+    st.markdown("### Prediction Settings")
     current_price = live_data['current_price']
     
     if horizon == "1 Day":
