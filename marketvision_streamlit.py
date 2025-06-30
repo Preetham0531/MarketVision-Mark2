@@ -1,4 +1,36 @@
 import streamlit as st
+import os
+from streamlit.errors import StreamlitSecretNotFoundError
+
+
+def setup_api_keys():
+    secrets_dir = "api_keys"
+    os.makedirs(secrets_dir, exist_ok=True)
+
+    try:
+        # This block will execute successfully on Streamlit Cloud if secrets are set.
+        if "FMP_API_KEY" in st.secrets:
+            with open(os.path.join(secrets_dir, "fmp_key.txt"), "w") as f:
+                f.write(st.secrets["FMP_API_KEY"])
+
+        if "NEWS_API_KEY" in st.secrets:
+            with open(os.path.join(secrets_dir, "newsapi_key.txt"), "w") as f:
+                f.write(st.secrets["NEWS_API_KEY"])
+
+    except StreamlitSecretNotFoundError:
+        # This error is expected when running locally without a secrets.toml file.
+        # We can warn the user if the local key files are also missing.
+        fmp_path = os.path.join(secrets_dir, "fmp_key.txt")
+        news_path = os.path.join(secrets_dir, "newsapi_key.txt")
+        
+        if not os.path.exists(fmp_path) or not os.path.exists(news_path):
+            st.warning(
+                "API keys not found. For local development, create `api_keys/fmp_key.txt` and "
+                "`api_keys/newsapi_key.txt`. Some features may be disabled."
+            )
+
+setup_api_keys()
+
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -6,7 +38,6 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import joblib
 import json
-import os
 import sys
 from datetime import datetime, timedelta
 import warnings
@@ -249,54 +280,41 @@ def load_model_and_data():
         
         return model_data, metadata, True
     except Exception as e:
+        st.error(f"Error loading model assets: {e}")
         return None, None, False
-
-@st.cache_data
-def load_processed_data():
-    try:
-        data_path = os.path.join('data', 'processed')
-        files = {
-            'indicators': 'stock_RELIANCE.NS_with_indicators.csv',
-            'macro': 'stock_RELIANCE.NS_with_macro_context.csv',
-            'sentiment': 'stock_RELIANCE.NS_with_sentiment.csv'
-        }
-        
-        data = {}
-        for key, filename in files.items():
-            filepath = os.path.join(data_path, filename)
-            if os.path.exists(filepath):
-                data[key] = pd.read_csv(filepath)
-        
-        return data
-    except Exception as e:
-        return {}
 
 def get_live_stock_data(symbol):
     try:
         ticker = yf.Ticker(symbol)
-        hist = ticker.history(period="1mo")
+        # Fetch 1 year of data to have enough for indicator calculations
+        hist = ticker.history(period="1y")
         
         if hist.empty:
+            st.error(f"Could not fetch historical data for {symbol}. It may be an invalid symbol.")
             return None, None
         
-        current_price = hist['Close'].iloc[-1]
-        price_change = hist['Close'].iloc[-1] - hist['Close'].iloc[-2]
-        price_change_pct = (price_change / hist['Close'].iloc[-2]) * 100
+        # Ensure columns are lowercase for consistency
+        hist.columns = [col.lower() for col in hist.columns]
         
-        return {
+        current_price = hist['close'].iloc[-1]
+        price_change = hist['close'].iloc[-1] - hist['close'].iloc[-2]
+        price_change_pct = (price_change / hist['close'].iloc[-2]) * 100
+        
+        live_data = {
             'current_price': current_price,
             'price_change': price_change,
             'price_change_pct': price_change_pct,
-            'volume': hist['Volume'].iloc[-1],
-            'high': hist['High'].iloc[-1],
-            'low': hist['Low'].iloc[-1],
-            'open': hist['Open'].iloc[-1]
-        }, hist
+            'volume': hist['volume'].iloc[-1],
+            'high': hist['high'].iloc[-1],
+            'low': hist['low'].iloc[-1],
+            'open': hist['open'].iloc[-1]
+        }
+        return live_data, hist
     except Exception as e:
+        st.error(f"An error occurred while fetching live data for {symbol}: {e}")
         return None, None
 
 def create_advanced_price_chart(hist_data, symbol):
-    # Create subplots for different chart types
     fig = make_subplots(
         rows=2, cols=2,
         subplot_titles=('Candlestick Chart', 'Line Chart', 'Area Chart', 'Volume Chart'),
@@ -304,39 +322,35 @@ def create_advanced_price_chart(hist_data, symbol):
                [{"secondary_y": False}, {"secondary_y": False}]]
     )
     
-    # Candlestick chart
     fig.add_trace(go.Candlestick(
         x=hist_data.index,
-        open=hist_data['Open'],
-        high=hist_data['High'],
-        low=hist_data['Low'],
-        close=hist_data['Close'],
+        open=hist_data['open'],
+        high=hist_data['high'],
+        low=hist_data['low'],
+        close=hist_data['close'],
         name='OHLC'
     ), row=1, col=1)
     
-    # Line chart
     fig.add_trace(go.Scatter(
         x=hist_data.index,
-        y=hist_data['Close'],
+        y=hist_data['close'],
         mode='lines',
         name='Close Price',
         line=dict(color='#4a90e2', width=2)
     ), row=1, col=2)
     
-    # Area chart
     fig.add_trace(go.Scatter(
         x=hist_data.index,
-        y=hist_data['Close'],
+        y=hist_data['close'],
         fill='tonexty',
         mode='lines',
         name='Close Price',
         line=dict(color='#4a90e2', width=1)
     ), row=2, col=1)
     
-    # Volume chart
     fig.add_trace(go.Bar(
         x=hist_data.index,
-        y=hist_data['Volume'],
+        y=hist_data['volume'],
         name='Volume',
         marker_color='#4a90e2'
     ), row=2, col=2)
@@ -365,7 +379,7 @@ def create_simple_line_chart(hist_data, symbol):
     
     fig.add_trace(go.Scatter(
         x=hist_data.index,
-        y=hist_data['Close'],
+        y=hist_data['close'],
         mode='lines',
         name='Close Price',
         line=dict(color='#4a90e2', width=3)
@@ -390,7 +404,7 @@ def create_area_chart(hist_data, symbol):
     
     fig.add_trace(go.Scatter(
         x=hist_data.index,
-        y=hist_data['Close'],
+        y=hist_data['close'],
         fill='tonexty',
         mode='lines',
         name='Close Price',
@@ -416,7 +430,7 @@ def create_volume_chart(hist_data, symbol):
     
     fig.add_trace(go.Bar(
         x=hist_data.index,
-        y=hist_data['Volume'],
+        y=hist_data['volume'],
         name='Volume',
         marker_color='#4a90e2'
     ))
@@ -435,14 +449,22 @@ def create_volume_chart(hist_data, symbol):
     
     return fig
 
-def calculate_technical_indicators(df):
-    if df.empty:
-        return df
+def calculate_live_indicators(df):
+    if df.empty or 'close' not in df.columns:
+        return pd.DataFrame(columns=['rsi_14_day', 'macd_line', 'macd_signal_line'])
     
-    df['SMA_20'] = df['Close'].rolling(window=20).mean()
-    df['SMA_50'] = df['Close'].rolling(window=50).mean()
-    df['RSI'] = 100 - (100 / (1 + (df['Close'].diff().rolling(window=14).mean() / df['Close'].diff().rolling(window=14).std())))
-    
+    # Use pandas_ta to calculate indicators
+    try:
+        import pandas_ta as ta
+        df.ta.rsi(length=14, append=True, col_names=('rsi_14_day'))
+        df.ta.macd(fast=12, slow=26, signal=9, append=True, col_names=('macd_line', 'macd_signal_line', 'macd_histogram'))
+    except Exception as e:
+        st.warning(f"Could not calculate technical indicators: {e}")
+        # Ensure columns exist even if calculation fails
+        if 'rsi_14_day' not in df.columns: df['rsi_14_day'] = np.nan
+        if 'macd_line' not in df.columns: df['macd_line'] = np.nan
+        if 'macd_signal_line' not in df.columns: df['macd_signal_line'] = np.nan
+
     return df
 
 def generate_advanced_prediction(symbol, live_data, horizon, include_sentiment=True, include_fundamentals=True):
@@ -570,9 +592,16 @@ def display_advanced_prediction_results(prediction, live_data):
     </div>
     """, unsafe_allow_html=True)
 
-def show_advanced_dashboard(model_data, metadata, processed_data):
-    st.markdown('<h2 class="sub-header">Market Overview</h2>', unsafe_allow_html=True)
+def show_advanced_dashboard(model_data, metadata, live_data, hist_data):
+    if not model_data:
+        st.error("Model not loaded. Please check the model files.")
+        return
     
+    if not live_data:
+        st.error("Could not fetch live market data.")
+        return
+
+    st.markdown('<h2 class="sub-header">Market Overview</h2>', unsafe_allow_html=True)
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
@@ -620,151 +649,148 @@ def show_advanced_dashboard(model_data, metadata, processed_data):
         st.markdown(f'<div class="stock-suggestion">Suggested: {symbol}</div>', unsafe_allow_html=True)
     
     if symbol:
-        live_data, hist_data = get_live_stock_data(symbol)
+        col1, col2, col3, col4 = st.columns(4)
         
-        if live_data and hist_data is not None:
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                price_change_color = "#00ff00" if live_data['price_change'] >= 0 else "#ff0000"
-                st.markdown(f"""
-                <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e;">
-                    <h3 style="color: #ecf0f1; margin: 0;">Current Price</h3>
-                    <h2 style="color: white; margin: 10px 0;">₹{live_data['current_price']:.2f}</h2>
-                    <p style="color: {price_change_color}; margin: 0; font-weight: bold;">
-                        {live_data['price_change']:+.2f} ({live_data['price_change_pct']:+.2f}%)
-                    </p>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col2:
-                st.markdown(f"""
-                <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e;">
-                    <h3 style="color: #ecf0f1; margin: 0;">Volume</h3>
-                    <h2 style="color: white; margin: 10px 0;">{live_data['volume']:,}</h2>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col3:
-                st.markdown(f"""
-                <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e;">
-                    <h3 style="color: #ecf0f1; margin: 0;">High</h3>
-                    <h2 style="color: #00ff00; margin: 10px 0;">₹{live_data['high']:.2f}</h2>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col4:
-                st.markdown(f"""
-                <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e;">
-                    <h3 style="color: #ecf0f1; margin: 0;">Low</h3>
-                    <h2 style="color: #ff0000; margin: 10px 0;">₹{live_data['low']:.2f}</h2>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            st.markdown('<h3 class="sub-header">Chart Analysis</h3>', unsafe_allow_html=True)
-            
-            # Candlestick Chart
-            st.markdown('<h4 style="color: #ffffff;">📊 Candlestick Chart</h4>', unsafe_allow_html=True)
-            st.markdown('<p style="color: #cccccc; font-size: 14px;">Traditional trading view showing Open, High, Low, and Close prices. Green candles indicate price increases, red candles indicate decreases.</p>', unsafe_allow_html=True)
-            
-            fig_candle = go.Figure()
-            fig_candle.add_trace(go.Candlestick(
-                x=hist_data.index,
-                open=hist_data['Open'],
-                high=hist_data['High'],
-                low=hist_data['Low'],
-                close=hist_data['Close'],
-                name='OHLC',
-                increasing_line_color='#00ff00',
-                decreasing_line_color='#ff0000'
-            ))
-            fig_candle.update_layout(
-                title=f'{symbol} Candlestick Chart (Last 30 Days)',
-                yaxis_title='Price (₹)',
-                xaxis_title='Date',
-                template='plotly_dark',
-                height=400,
-                showlegend=True,
-                plot_bgcolor='#1a1a1a',
-                paper_bgcolor='#1a1a1a',
-                font=dict(color='white')
-            )
-            st.plotly_chart(fig_candle, use_container_width=True)
-            
-            # Line Chart
-            st.markdown('<h4 style="color: #ffffff;">📈 Line Chart</h4>', unsafe_allow_html=True)
-            st.markdown('<p style="color: #cccccc; font-size: 14px;">Smooth price trend visualization showing closing prices over time. Good for identifying overall market direction.</p>', unsafe_allow_html=True)
-            
-            fig_line = go.Figure()
-            fig_line.add_trace(go.Scatter(
-                x=hist_data.index,
-                y=hist_data['Close'],
-                mode='lines',
-                name='Close Price',
-                line=dict(color='#4a90e2', width=3)
-            ))
-            fig_line.update_layout(
-                title=f'{symbol} Line Chart (Last 30 Days)',
-                yaxis_title='Price (₹)',
-                xaxis_title='Date',
-                template='plotly_dark',
-                height=400,
-                showlegend=True,
-                plot_bgcolor='#1a1a1a',
-                paper_bgcolor='#1a1a1a',
-                font=dict(color='white')
-            )
-            st.plotly_chart(fig_line, use_container_width=True)
-            
-            # Area Chart
-            st.markdown('<h4 style="color: #ffffff;">📊 Area Chart</h4>', unsafe_allow_html=True)
-            st.markdown('<p style="color: #cccccc; font-size: 14px;">Filled area visualization emphasizing price levels and trends. Shows price movement with visual weight.</p>', unsafe_allow_html=True)
-            
-            fig_area = go.Figure()
-            fig_area.add_trace(go.Scatter(
-                x=hist_data.index,
-                y=hist_data['Close'],
-                fill='tonexty',
-                mode='lines',
-                name='Close Price',
-                line=dict(color='#4a90e2', width=2)
-            ))
-            fig_area.update_layout(
-                title=f'{symbol} Area Chart (Last 30 Days)',
-                yaxis_title='Price (₹)',
-                xaxis_title='Date',
-                template='plotly_dark',
-                height=400,
-                showlegend=True,
-                plot_bgcolor='#1a1a1a',
-                paper_bgcolor='#1a1a1a',
-                font=dict(color='white')
-            )
-            st.plotly_chart(fig_area, use_container_width=True)
-            
-            # Volume Chart
-            st.markdown('<h4 style="color: #ffffff;">📊 Volume Chart</h4>', unsafe_allow_html=True)
-            st.markdown('<p style="color: #cccccc; font-size: 14px;">Trading volume analysis showing market activity. Higher bars indicate more trading volume, confirming price movements.</p>', unsafe_allow_html=True)
-            
-            fig_volume = go.Figure()
-            fig_volume.add_trace(go.Bar(
-                x=hist_data.index,
-                y=hist_data['Volume'],
-                name='Volume',
-                marker_color='#4a90e2'
-            ))
-            fig_volume.update_layout(
-                title=f'{symbol} Volume Chart (Last 30 Days)',
-                yaxis_title='Volume',
-                xaxis_title='Date',
-                template='plotly_dark',
-                height=400,
-                showlegend=True,
-                plot_bgcolor='#1a1a1a',
-                paper_bgcolor='#1a1a1a',
-                font=dict(color='white')
-            )
-            st.plotly_chart(fig_volume, use_container_width=True)
+        with col1:
+            price_change_color = "#00ff00" if live_data['price_change'] >= 0 else "#ff0000"
+            st.markdown(f"""
+            <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e;">
+                <h3 style="color: #ecf0f1; margin: 0;">Current Price</h3>
+                <h2 style="color: white; margin: 10px 0;">₹{live_data['current_price']:.2f}</h2>
+                <p style="color: {price_change_color}; margin: 0; font-weight: bold;">
+                    {live_data['price_change']:+.2f} ({live_data['price_change_pct']:+.2f}%)
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown(f"""
+            <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e;">
+                <h3 style="color: #ecf0f1; margin: 0;">Volume</h3>
+                <h2 style="color: white; margin: 10px 0;">{live_data['volume']:,}</h2>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown(f"""
+            <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e;">
+                <h3 style="color: #ecf0f1; margin: 0;">High</h3>
+                <h2 style="color: #00ff00; margin: 10px 0;">₹{live_data['high']:.2f}</h2>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col4:
+            st.markdown(f"""
+            <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e;">
+                <h3 style="color: #ecf0f1; margin: 0;">Low</h3>
+                <h2 style="color: #ff0000; margin: 10px 0;">₹{live_data['low']:.2f}</h2>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown('<h3 class="sub-header">Chart Analysis</h3>', unsafe_allow_html=True)
+        
+        # Candlestick Chart
+        st.markdown('<h4 style="color: #ffffff;">📊 Candlestick Chart</h4>', unsafe_allow_html=True)
+        st.markdown('<p style="color: #cccccc; font-size: 14px;">Traditional trading view showing Open, High, Low, and Close prices. Green candles indicate price increases, red candles indicate decreases.</p>', unsafe_allow_html=True)
+        
+        fig_candle = go.Figure()
+        fig_candle.add_trace(go.Candlestick(
+            x=hist_data.index,
+            open=hist_data['open'],
+            high=hist_data['high'],
+            low=hist_data['low'],
+            close=hist_data['close'],
+            name='OHLC',
+            increasing_line_color='#00ff00',
+            decreasing_line_color='#ff0000'
+        ))
+        fig_candle.update_layout(
+            title=f'{symbol} Candlestick Chart (Last 30 Days)',
+            yaxis_title='Price (₹)',
+            xaxis_title='Date',
+            template='plotly_dark',
+            height=400,
+            showlegend=True,
+            plot_bgcolor='#1a1a1a',
+            paper_bgcolor='#1a1a1a',
+            font=dict(color='white')
+        )
+        st.plotly_chart(fig_candle, use_container_width=True)
+        
+        # Line Chart
+        st.markdown('<h4 style="color: #ffffff;">📈 Line Chart</h4>', unsafe_allow_html=True)
+        st.markdown('<p style="color: #cccccc; font-size: 14px;">Smooth price trend visualization showing closing prices over time. Good for identifying overall market direction.</p>', unsafe_allow_html=True)
+        
+        fig_line = go.Figure()
+        fig_line.add_trace(go.Scatter(
+            x=hist_data.index,
+            y=hist_data['close'],
+            mode='lines',
+            name='Close Price',
+            line=dict(color='#4a90e2', width=3)
+        ))
+        fig_line.update_layout(
+            title=f'{symbol} Line Chart (Last 30 Days)',
+            yaxis_title='Price (₹)',
+            xaxis_title='Date',
+            template='plotly_dark',
+            height=400,
+            showlegend=True,
+            plot_bgcolor='#1a1a1a',
+            paper_bgcolor='#1a1a1a',
+            font=dict(color='white')
+        )
+        st.plotly_chart(fig_line, use_container_width=True)
+        
+        # Area Chart
+        st.markdown('<h4 style="color: #ffffff;">📊 Area Chart</h4>', unsafe_allow_html=True)
+        st.markdown('<p style="color: #cccccc; font-size: 14px;">Filled area visualization emphasizing price levels and trends. Shows price movement with visual weight.</p>', unsafe_allow_html=True)
+        
+        fig_area = go.Figure()
+        fig_area.add_trace(go.Scatter(
+            x=hist_data.index,
+            y=hist_data['close'],
+            fill='tonexty',
+            mode='lines',
+            name='Close Price',
+            line=dict(color='#4a90e2', width=2)
+        ))
+        fig_area.update_layout(
+            title=f'{symbol} Area Chart (Last 30 Days)',
+            yaxis_title='Price (₹)',
+            xaxis_title='Date',
+            template='plotly_dark',
+            height=400,
+            showlegend=True,
+            plot_bgcolor='#1a1a1a',
+            paper_bgcolor='#1a1a1a',
+            font=dict(color='white')
+        )
+        st.plotly_chart(fig_area, use_container_width=True)
+        
+        # Volume Chart
+        st.markdown('<h4 style="color: #ffffff;">📊 Volume Chart</h4>', unsafe_allow_html=True)
+        st.markdown('<p style="color: #cccccc; font-size: 14px;">Trading volume analysis showing market activity. Higher bars indicate more trading volume, confirming price movements.</p>', unsafe_allow_html=True)
+        
+        fig_volume = go.Figure()
+        fig_volume.add_trace(go.Bar(
+            x=hist_data.index,
+            y=hist_data['volume'],
+            name='Volume',
+            marker_color='#4a90e2'
+        ))
+        fig_volume.update_layout(
+            title=f'{symbol} Volume Chart (Last 30 Days)',
+            yaxis_title='Volume',
+            xaxis_title='Date',
+            template='plotly_dark',
+            height=400,
+            showlegend=True,
+            plot_bgcolor='#1a1a1a',
+            paper_bgcolor='#1a1a1a',
+            font=dict(color='white')
+        )
+        st.plotly_chart(fig_volume, use_container_width=True)
 
 def show_advanced_predictions(model_data, metadata):
     st.markdown('<h2 class="sub-header">Live Stock Predictions</h2>', unsafe_allow_html=True)
@@ -796,11 +822,10 @@ def show_advanced_predictions(model_data, metadata):
                     st.error("Could not fetch live data for the symbol.")
 
 def show_model_performance(metadata):
-    st.markdown('<h2 class="sub-header">Model Performance Analysis</h2>', unsafe_allow_html=True)
-    
     if not metadata:
-        st.error("Model metadata not available.")
+        st.error("Model metadata not available. Cannot display performance.")
         return
+    st.markdown('<h2 class="sub-header">AI Model Performance</h2>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     
@@ -830,78 +855,91 @@ def show_model_performance(metadata):
                 </div>
                 """, unsafe_allow_html=True)
 
-def show_technical_analysis(processed_data):
+def show_technical_analysis(hist_data):
     st.markdown('<h2 class="sub-header">Technical Analysis Dashboard</h2>', unsafe_allow_html=True)
     
-    if not processed_data:
-        st.error("No processed data available for technical analysis.")
+    if hist_data is None or hist_data.empty:
+        st.error("No historical data available to perform technical analysis.")
         return
     
-    if 'indicators' in processed_data:
-        df = processed_data['indicators']
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown('<h4>RSI Analysis</h4>', unsafe_allow_html=True)
-            if 'rsi_14_day' in df.columns:
-                latest_rsi = df['rsi_14_day'].iloc[-1]
-                
-                rsi_color = "#ff0000" if latest_rsi > 70 else "#00ff00" if latest_rsi < 30 else "#ffffff"
-                rsi_status = "Overbought" if latest_rsi > 70 else "Oversold" if latest_rsi < 30 else "Neutral"
-                status_color = "#ff0000" if latest_rsi > 70 else "#00ff00" if latest_rsi < 30 else "#ffff00"
-                
-                st.markdown(f"""
-                <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e;">
-                    <h3 style="color: #ecf0f1; margin: 0;">Current RSI (14-day)</h3>
-                    <h2 style="color: {rsi_color}; margin: 10px 0;">{latest_rsi:.2f}</h2>
-                    <p style="color: {status_color}; margin: 0; font-weight: bold;">{rsi_status}</p>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown('<h4>MACD Analysis</h4>', unsafe_allow_html=True)
-            if 'macd_line' in df.columns and 'macd_signal_line' in df.columns:
-                latest_macd = df['macd_line'].iloc[-1]
-                latest_signal = df['macd_signal_line'].iloc[-1]
-                
-                macd_color = "#00ff00" if latest_macd > latest_signal else "#ff0000"
-                macd_status = "Bullish" if latest_macd > latest_signal else "Bearish"
-                
-                st.markdown(f"""
-                <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 1.2rem;">
-                    <h3 style="color: #ecf0f1; margin: 0;">MACD Line</h3>
-                    <h2 style="color: white; margin: 10px 0;">{latest_macd:.4f}</h2>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                st.markdown(f"""
-                <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 1.2rem;">
-                    <h3 style="color: #ecf0f1; margin: 0;">Signal Line</h3>
-                    <h2 style="color: white; margin: 10px 0;">{latest_signal:.4f}</h2>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                st.markdown(f"""
-                <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 1.2rem;">
-                    <h3 style="color: {macd_color}; margin: 0;">{macd_status} MACD</h3>
-                </div>
-                """, unsafe_allow_html=True)
+    # Calculate indicators on the fly from the historical data
+    df_with_indicators = calculate_live_indicators(hist_data.copy())
+    
+    if df_with_indicators.empty:
+        st.warning("Could not calculate technical indicators from the available data.")
+        return
 
-def show_market_sentiment(processed_data):
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown('<h4>RSI Analysis</h4>', unsafe_allow_html=True)
+        if 'rsi_14_day' in df_with_indicators.columns and not df_with_indicators['rsi_14_day'].isnull().all():
+            latest_rsi = df_with_indicators['rsi_14_day'].iloc[-1]
+            
+            rsi_color = "#ff0000" if latest_rsi > 70 else "#00ff00" if latest_rsi < 30 else "#ffffff"
+            rsi_status = "Overbought" if latest_rsi > 70 else "Oversold" if latest_rsi < 30 else "Neutral"
+            status_color = "#ff0000" if latest_rsi > 70 else "#00ff00" if latest_rsi < 30 else "#ffff00"
+            
+            st.markdown(f"""
+            <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e;">
+                <h3 style="color: #ecf0f1; margin: 0;">Current RSI (14-day)</h3>
+                <h2 style="color: {rsi_color}; margin: 10px 0;">{latest_rsi:.2f}</h2>
+                <p style="color: {status_color}; margin: 0; font-weight: bold;">{rsi_status}</p>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown('<h4>MACD Analysis</h4>', unsafe_allow_html=True)
+        if 'macd_line' in df_with_indicators.columns and 'macd_signal_line' in df_with_indicators.columns and not df_with_indicators['macd_line'].isnull().all():
+            latest_macd = df_with_indicators['macd_line'].iloc[-1]
+            latest_signal = df_with_indicators['macd_signal_line'].iloc[-1]
+            
+            macd_color = "#00ff00" if latest_macd > latest_signal else "#ff0000"
+            macd_status = "Bullish" if latest_macd > latest_signal else "Bearish"
+            
+            st.markdown(f"""
+            <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 1.2rem;">
+                <h3 style="color: #ecf0f1; margin: 0;">MACD Line</h3>
+                <h2 style="color: white; margin: 10px 0;">{latest_macd:.4f}</h2>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown(f"""
+            <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 1.2rem;">
+                <h3 style="color: #ecf0f1; margin: 0;">Signal Line</h3>
+                <h2 style="color: white; margin: 10px 0;">{latest_signal:.4f}</h2>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown(f"""
+            <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 1.2rem;">
+                <h3 style="color: {macd_color}; margin: 0;">{macd_status} MACD</h3>
+            </div>
+            """, unsafe_allow_html=True)
+
+def show_market_sentiment(symbol):
     st.markdown('<h2 class="sub-header">Market Sentiment Analysis</h2>', unsafe_allow_html=True)
     
-    if 'sentiment' not in processed_data:
-        st.error("Sentiment data not available.")
-        return
+    # For a live app, sentiment should be fetched on the fly.
+    # This is a placeholder for a real sentiment fetching function.
+    # For now, we'll simulate it.
     
-    df = processed_data['sentiment']
+    # This function would call a news API for the given symbol
+    def fetch_live_sentiment(stock_symbol):
+        # In a real implementation, you would use a news API here.
+        # For this example, we return mock data.
+        mock_sentiment = np.random.uniform(-0.5, 0.5)
+        mock_mentions = np.random.randint(10, 500)
+        mock_prob = (mock_sentiment + 1) / 2 # Simple conversion to probability
+        return mock_sentiment, mock_mentions, mock_prob
+
+    latest_sentiment, mentions, prob = fetch_live_sentiment(symbol)
     
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if 'avg_sentiment_score' in df.columns:
-            latest_sentiment = df['avg_sentiment_score'].iloc[-1]
+        if 'avg_sentiment_score' in df_with_indicators.columns:
+            latest_sentiment = df_with_indicators['avg_sentiment_score'].iloc[-1]
             
             sentiment_color = "#00ff00" if latest_sentiment > 0.1 else "#ff0000" if latest_sentiment < -0.1 else "#ffff00"
             sentiment_status = "Positive" if latest_sentiment > 0.1 else "Negative" if latest_sentiment < -0.1 else "Neutral"
@@ -915,8 +953,8 @@ def show_market_sentiment(processed_data):
             """, unsafe_allow_html=True)
     
     with col2:
-        if 'social_mention_count_7_day' in df.columns:
-            mentions = df['social_mention_count_7_day'].iloc[-1]
+        if 'social_mention_count_7_day' in df_with_indicators.columns:
+            mentions = df_with_indicators['social_mention_count_7_day'].iloc[-1]
             st.markdown(f"""
             <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e;">
                 <h3 style="color: #ecf0f1; margin: 0;">Social Mentions (7-day)</h3>
@@ -925,8 +963,8 @@ def show_market_sentiment(processed_data):
             """, unsafe_allow_html=True)
     
     with col3:
-        if 'probability_price_increase_next_day' in df.columns:
-            prob = df['probability_price_increase_next_day'].iloc[-1]
+        if 'probability_price_increase_next_day' in df_with_indicators.columns:
+            prob = df_with_indicators['probability_price_increase_next_day'].iloc[-1]
             
             prob_color = "#00ff00" if prob > 0.6 else "#ff0000" if prob < 0.4 else "#ffff00"
             
@@ -1035,7 +1073,6 @@ def show_cheatsheet():
 
     st.markdown('<h3>How to Use Each Section</h3>', unsafe_allow_html=True)
     
-    # Dashboard
     st.markdown("""
     <div style="padding: 1.5rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 2rem;">
         <h4 style="color: #ecf0f1;">Dashboard</h4>
@@ -1048,7 +1085,6 @@ def show_cheatsheet():
     </div>
     """, unsafe_allow_html=True)
     
-    # Live Predictions
     st.markdown("""
     <div style="padding: 1.5rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 2rem;">
         <h4 style="color: #ecf0f1;">Live Predictions</h4>
@@ -1062,7 +1098,6 @@ def show_cheatsheet():
     </div>
     """, unsafe_allow_html=True)
 
-    # Technical Analysis
     st.markdown("""
     <div style="padding: 1.5rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 2rem;">
         <h4 style="color: #ecf0f1;">Technical Analysis</h4>
@@ -1074,7 +1109,6 @@ def show_cheatsheet():
     </div>
     """, unsafe_allow_html=True)
 
-    # Market Sentiment
     st.markdown("""
     <div style="padding: 1.5rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 2rem;">
         <h4 style="color: #ecf0f1;">Market Sentiment</h4>
@@ -1086,8 +1120,7 @@ def show_cheatsheet():
         </ul>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Find NSE Symbol
+
     st.markdown("""
     <div style="padding: 1.5rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 2rem;">
         <h4 style="color: #ecf0f1;">Find NSE Symbol</h4>
@@ -1182,33 +1215,64 @@ def find_nse_symbol_section():
 
 def main():
     st.markdown('<h1 class="main-header">MarketVision Pro</h1>', unsafe_allow_html=True)
-    st.markdown('<h2 style="text-align: center; color: #ffffff;">Advanced AI-Powered Indian Stock Market Prediction System</h2>', unsafe_allow_html=True)
     
     model_data, metadata, model_loaded = load_model_and_data()
-    processed_data = load_processed_data()
     
-    st.sidebar.markdown("## Navigation")
-    page = st.sidebar.selectbox(
-        "Choose a section:",
-        ["Dashboard", "Live Predictions", "Model Performance", "Technical Analysis", "Market Sentiment", "Model Details", "Cheatsheet", "Find NSE Symbol", "About"]
+    # Sidebar Navigation
+    st.sidebar.title("Navigation")
+    
+    # --- Stock Selection ---
+    st.sidebar.markdown("### Select Stock")
+    
+    # Text input for stock symbol
+    typed_symbol = st.sidebar.text_input(
+        "Type Stock Symbol (e.g., INFY.NS)", 
+        st.session_state.selected_stock,
+        key="typed_stock"
+    )
+
+    # Dropdown with suggestions
+    selected_company = st.sidebar.selectbox(
+        "Or Select from NIFTY50",
+        options=list(STOCK_SYMBOLS.keys()),
+        format_func=lambda x: f"{x} ({STOCK_SYMBOLS[x]})",
+        index=list(STOCK_SYMBOLS.values()).index(st.session_state.selected_stock) if st.session_state.selected_stock in STOCK_SYMBOLS.values() else 0,
+        key="selected_company"
+    )
+
+    # Logic to sync text input and selectbox
+    if typed_symbol != st.session_state.selected_stock:
+        st.session_state.selected_stock = suggest_symbol(typed_symbol)
+    elif STOCK_SYMBOLS[selected_company] != st.session_state.selected_stock:
+        st.session_state.selected_stock = STOCK_SYMBOLS[selected_company]
+
+    # Display the final selected stock
+    st.sidebar.markdown(f"<div class='stock-suggestion'>Selected: {st.session_state.selected_stock}</div>", unsafe_allow_html=True)
+    
+    # --- Page Selection ---
+    st.sidebar.markdown("### Choose Section")
+    page = st.sidebar.radio(
+        "Go to",
+        ["Dashboard", "Live Predictions", "Model Performance", "Technical Analysis", "Market Sentiment", "Find NSE Symbol", "Cheatsheet", "About"]
     )
     
+    # Fetch live data once
+    live_data, hist_data = get_live_stock_data(st.session_state.selected_stock)
+
     if page == "Dashboard":
-        show_advanced_dashboard(model_data, metadata, processed_data)
+        show_advanced_dashboard(model_data, metadata, live_data, hist_data)
     elif page == "Live Predictions":
         show_advanced_predictions(model_data, metadata)
     elif page == "Model Performance":
         show_model_performance(metadata)
     elif page == "Technical Analysis":
-        show_technical_analysis(processed_data)
+        show_technical_analysis(hist_data)
     elif page == "Market Sentiment":
-        show_market_sentiment(processed_data)
-    elif page == "Model Details":
-        show_model_details(metadata)
-    elif page == "Cheatsheet":
-        show_cheatsheet()
+        show_market_sentiment(st.session_state.selected_stock)
     elif page == "Find NSE Symbol":
         find_nse_symbol_section()
+    elif page == "Cheatsheet":
+        show_cheatsheet()
     elif page == "About":
         show_about_page()
 
