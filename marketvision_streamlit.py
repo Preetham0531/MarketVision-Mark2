@@ -8,7 +8,6 @@ def setup_api_keys():
     os.makedirs(secrets_dir, exist_ok=True)
 
     try:
-        # This block will execute successfully on Streamlit Cloud if secrets are set.
         if "FMP_API_KEY" in st.secrets:
             with open(os.path.join(secrets_dir, "fmp_key.txt"), "w") as f:
                 f.write(st.secrets["FMP_API_KEY"])
@@ -17,9 +16,7 @@ def setup_api_keys():
             with open(os.path.join(secrets_dir, "newsapi_key.txt"), "w") as f:
                 f.write(st.secrets["NEWS_API_KEY"])
 
-    except StreamlitSecretNotFoundError:
-        # This error is expected when running locally without a secrets.toml file.
-        # We can warn the user if the local key files are also missing.
+    except StreamlitSecretNotFoundError:   
         fmp_path = os.path.join(secrets_dir, "fmp_key.txt")
         news_path = os.path.join(secrets_dir, "newsapi_key.txt")
         
@@ -286,14 +283,12 @@ def load_model_and_data():
 def get_live_stock_data(symbol):
     try:
         ticker = yf.Ticker(symbol)
-        # Fetch 1 year of data to have enough for indicator calculations
         hist = ticker.history(period="1y")
         
         if hist.empty:
             st.error(f"Could not fetch historical data for {symbol}. It may be an invalid symbol.")
             return None, None
         
-        # Ensure columns are lowercase for consistency
         hist.columns = [col.lower() for col in hist.columns]
         
         current_price = hist['close'].iloc[-1]
@@ -448,14 +443,12 @@ def calculate_live_indicators(df):
     if df.empty or 'close' not in df.columns:
         return pd.DataFrame(columns=['rsi_14_day', 'macd_line', 'macd_signal_line'])
     
-    # Use pandas_ta to calculate indicators
     try:
         import pandas_ta as ta
         df.ta.rsi(length=14, append=True, col_names=('rsi_14_day'))
         df.ta.macd(fast=12, slow=26, signal=9, append=True, col_names=('macd_line', 'macd_signal_line', 'macd_histogram'))
     except Exception as e:
         st.warning(f"Could not calculate technical indicators: {e}")
-        # Ensure columns exist even if calculation fails
         if 'rsi_14_day' not in df.columns: df['rsi_14_day'] = np.nan
         if 'macd_line' not in df.columns: df['macd_line'] = np.nan
         if 'macd_signal_line' not in df.columns: df['macd_signal_line'] = np.nan
@@ -713,7 +706,6 @@ def show_advanced_dashboard(model_data, metadata, live_data, hist_data):
         )
         st.plotly_chart(fig_candle, use_container_width=True)
         
-        # Line Chart
         st.markdown('<h4 style="color: #ffffff;">📈 Line Chart</h4>', unsafe_allow_html=True)
         st.markdown('<p style="color: #cccccc; font-size: 14px;">Smooth price trend visualization showing closing prices over time. Good for identifying overall market direction.</p>', unsafe_allow_html=True)
         
@@ -738,7 +730,6 @@ def show_advanced_dashboard(model_data, metadata, live_data, hist_data):
         )
         st.plotly_chart(fig_line, use_container_width=True)
         
-        # Area Chart
         st.markdown('<h4 style="color: #ffffff;">📊 Area Chart</h4>', unsafe_allow_html=True)
         st.markdown('<p style="color: #cccccc; font-size: 14px;">Filled area visualization emphasizing price levels and trends. Shows price movement with visual weight.</p>', unsafe_allow_html=True)
         
@@ -763,8 +754,6 @@ def show_advanced_dashboard(model_data, metadata, live_data, hist_data):
             font=dict(color='white')
         )
         st.plotly_chart(fig_area, use_container_width=True)
-        
-        # Volume Chart
         st.markdown('<h4 style="color: #ffffff;">📊 Volume Chart</h4>', unsafe_allow_html=True)
         st.markdown('<p style="color: #cccccc; font-size: 14px;">Trading volume analysis showing market activity. Higher bars indicate more trading volume, confirming price movements.</p>', unsafe_allow_html=True)
         
@@ -858,7 +847,6 @@ def show_technical_analysis(hist_data):
         st.error("No historical data available to perform technical analysis.")
         return
     
-    # Calculate indicators on the fly from the historical data
     df_with_indicators = calculate_live_indicators(hist_data.copy())
     
     if df_with_indicators.empty:
@@ -902,17 +890,10 @@ def show_technical_analysis(hist_data):
 def show_market_sentiment(symbol):
     st.markdown('<h2 class="sub-header">Market Sentiment Analysis</h2>', unsafe_allow_html=True)
     
-    # For a live app, sentiment should be fetched on the fly.
-    # This is a placeholder for a real sentiment fetching function.
-    # For now, we'll simulate it.
-    
-    # This function would call a news API for the given symbol
     def fetch_live_sentiment(stock_symbol):
-        # In a real implementation, you would use a news API here.
-        # For this example, we return mock data.
         mock_sentiment = np.random.uniform(-0.5, 0.5)
         mock_mentions = np.random.randint(10, 500)
-        mock_prob = (mock_sentiment + 1) / 2 # Simple conversion to probability
+        mock_prob = (mock_sentiment + 1) / 2 
         return mock_sentiment, mock_mentions, mock_prob
 
     latest_sentiment, mentions, prob = fetch_live_sentiment(symbol)
@@ -1024,7 +1005,6 @@ def show_cheatsheet():
     </div>
     """, unsafe_allow_html=True)
 
-    # Project Architecture
     st.markdown('<h3>Project Architecture</h3>', unsafe_allow_html=True)
     st.markdown("""
     <div style="padding: 1.5rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 2rem;">
@@ -1039,7 +1019,6 @@ def show_cheatsheet():
     </div>
     """, unsafe_allow_html=True)
 
-    # How to Use This App
     st.markdown('<h3>How to Use This App</h3>', unsafe_allow_html=True)
     st.markdown("""
     <div style="padding: 1.5rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 2rem;">
@@ -1151,20 +1130,16 @@ def main():
     
     model_data, metadata, model_loaded = load_model_and_data()
     
-    # Sidebar Navigation
     st.sidebar.title("Navigation")
     
-    # --- Stock Selection ---
     st.sidebar.markdown("### Select Stock")
     
-    # Text input for stock symbol
     typed_symbol = st.sidebar.text_input(
         "Type Stock Symbol (e.g., INFY.NS)", 
         st.session_state.selected_stock,
         key="typed_stock"
     )
 
-    # Dropdown with suggestions
     selected_company = st.sidebar.selectbox(
         "Or Select from NIFTY50",
         options=list(STOCK_SYMBOLS.keys()),
@@ -1173,23 +1148,19 @@ def main():
         key="selected_company"
     )
 
-    # Logic to sync text input and selectbox
     if typed_symbol != st.session_state.selected_stock:
         st.session_state.selected_stock = suggest_symbol(typed_symbol)
     elif STOCK_SYMBOLS[selected_company] != st.session_state.selected_stock:
         st.session_state.selected_stock = STOCK_SYMBOLS[selected_company]
 
-    # Display the final selected stock
     st.sidebar.markdown(f"<div class='stock-suggestion'>Selected: {st.session_state.selected_stock}</div>", unsafe_allow_html=True)
     
-    # --- Page Selection ---
     st.sidebar.markdown("### Choose Section")
     page = st.sidebar.radio(
         "Go to",
         ["Dashboard", "Live Predictions", "Model Performance", "Technical Analysis", "Market Sentiment", "Find NSE Symbol", "Cheatsheet", "About"]
     )
     
-    # Fetch live data once
     live_data, hist_data = get_live_stock_data(st.session_state.selected_stock)
 
     if page == "Dashboard":
