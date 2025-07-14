@@ -1,7 +1,6 @@
 # MarketVision: AI-Powered Stock Market Prediction for NSE
 
 ![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![Framework: Streamlit](https://img.shields.io/badge/Framework-Streamlit-red)
 
 MarketVision is a comprehensive, AI-driven platform for predicting stock market movements on the National Stock Exchange (NSE) of India. It leverages a multi-faceted approach, combining technical analysis, fundamental data, and real-time news sentiment to deliver actionable insights and multi-horizon forecasts through an intuitive and interactive web interface.
@@ -123,6 +122,3 @@ This application is intended for educational and research purposes only. The pre
 
 ---
 
-## 📄 License
-
-This project is licensed under the MIT License. See the `LICENSE` file for details. 

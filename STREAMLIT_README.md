@@ -19,19 +19,13 @@ MarketVision Pro is a sophisticated, AI-powered stock market prediction web appl
 - **Fundamental Analysis**: Financial ratios and company metrics
 - **Risk Assessment**: Volatility analysis and confidence scores
 
-### 📊 Model Performance
-- **Accuracy Metrics**: Classification and regression performance
-- **Feature Importance**: SHAP analysis for model interpretability
-- **Training History**: Model evolution and performance tracking
-- **Validation Results**: Cross-validation and backtesting results
+### Model Performance
+**Accuracy Metrics**: Classification and regression performance
+**Feature Importance**: SHAP analysis for model interpretability
+**Training History**: Model evolution and performance tracking
+**Validation Results**: Cross-validation and backtesting results
 
-### 📈 Technical Analysis
-- **Advanced Charts**: Interactive price charts with indicators
-- **Pattern Recognition**: Support/resistance levels
-- **Momentum Analysis**: RSI, Stochastic, Williams %R
-- **Trend Analysis**: Moving averages and trend lines
-
-### 📰 Market Sentiment
+### Market Sentiment
 - **News Analysis**: Real-time news sentiment scoring
 - **Social Media**: Social mention tracking
 - **Market Context**: Global market correlations
@@ -224,9 +218,6 @@ We welcome contributions! Please:
 3. Make your changes
 4. Submit a pull request
 
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## ⚠️ Disclaimer
 

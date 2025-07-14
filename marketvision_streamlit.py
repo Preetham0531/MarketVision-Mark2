@@ -631,12 +631,14 @@ def show_advanced_dashboard(model_data, metadata, live_data, hist_data):
     
     st.markdown('<h2 class="sub-header">Live Market Data</h2>', unsafe_allow_html=True)
     
-    symbol_input = st.text_input("Or select from dropdown:", value="RELIANCE.NS", key="symbol_input")
-    symbol = suggest_symbol(symbol_input)
-    
-    if symbol != symbol_input:
-        st.markdown(f'<div class="stock-suggestion">Suggested: {symbol}</div>', unsafe_allow_html=True)
-    
+    symbol_input = st.text_input("Type or search NSE symbol:", value="RELIANCE.NS", key="symbol_input")
+    suggestions = [s for s in STOCK_SYMBOLS.values() if symbol_input.upper() in s or symbol_input.upper() in s.split('.') or symbol_input.upper() in s.split('N')]
+    if symbol_input and suggestions and symbol_input.upper() not in suggestions:
+        st.markdown("<div class='stock-suggestion'>Suggestions:<br>" + "<br>".join(suggestions[:5]) + "</div>", unsafe_allow_html=True)
+        selected = st.selectbox("Select NSE Symbol", suggestions, key="symbol_select")
+        symbol = selected
+    else:
+        symbol = symbol_input
     if symbol:
         col1, col2, col3, col4 = st.columns(4)
         
@@ -787,8 +789,14 @@ def show_advanced_predictions(model_data, metadata):
     col1, col2 = st.columns(2)
     
     with col1:
-        symbol_input = st.text_input("Stock Symbol:", value="RELIANCE.NS", key="prediction_symbol")
-        symbol = suggest_symbol(symbol_input)
+        symbol_input = st.text_input("Type or search NSE symbol:", value="RELIANCE.NS", key="prediction_symbol")
+        suggestions = [s for s in STOCK_SYMBOLS.values() if symbol_input.upper() in s or symbol_input.upper() in s.split('.') or symbol_input.upper() in s.split('N')]
+        if symbol_input and suggestions and symbol_input.upper() not in suggestions:
+            st.markdown("<div class='stock-suggestion'>Suggestions:<br>" + "<br>".join(suggestions[:5]) + "</div>", unsafe_allow_html=True)
+            selected = st.selectbox("Select NSE Symbol", suggestions, key="prediction_symbol_select")
+            symbol = selected
+        else:
+            symbol = symbol_input
         prediction_horizon = st.selectbox("Prediction Horizon:", ["1 Day", "5 Days", "1 Week", "1 Month"])
     
     with col2:
@@ -840,24 +848,7 @@ def show_model_performance(metadata):
                 </div>
                 """, unsafe_allow_html=True)
 
-def show_technical_analysis(hist_data):
-    st.markdown('<h2 class="sub-header">Technical Analysis Dashboard</h2>', unsafe_allow_html=True)
-    
-    if hist_data is None or hist_data.empty:
-        st.error("No historical data available to perform technical analysis.")
-        return
-    
-    df_with_indicators = calculate_live_indicators(hist_data.copy())
-    
-    if df_with_indicators.empty:
-        st.warning("Could not calculate technical indicators from the available data.")
-        return
-
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown('<h4>RSI Analysis</h4>', unsafe_allow_html=True)
-        if 'rsi_14_day' in df_with_indicators.columns and not df_with_indicators['rsi_14_day'].isnull().all():
+    # ...existing code...
             latest_rsi = df_with_indicators['rsi_14_day'].iloc[-1]
             
             rsi_color = "#ff0000" if latest_rsi > 70 else "#00ff00" if latest_rsi < 30 else "#ffffff"
@@ -978,23 +969,7 @@ def show_model_details(metadata):
         </div>
         """, unsafe_allow_html=True)
 
-def show_about_page():
-    st.markdown('<h2 class="sub-header">About MarketVision Pro</h2>', unsafe_allow_html=True)
-    
-    st.markdown("""
-    <div style="padding: 1.5rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e;">
-        <p style="color: #ecf0f1;"><strong>MarketVision Pro</strong> is a sophisticated financial analysis tool designed to empower investors with AI-driven insights into the Indian stock market. It combines real-time market data, advanced technical indicators, and cutting-edge machine learning models to deliver comprehensive stock analysis and future price predictions.</p>
-        
-        <h4 style="color: #ffffff; border-bottom: 2px solid #3498db; padding-bottom: 0.5rem; margin-top: 1.5rem;">Key Features:</h4>
-        <ul style="color: #bdc3c7;">
-            <li><strong>Live Market Dashboard:</strong> Real-time price tracking and key performance metrics.</li>
-            <li><strong>AI-Powered Predictions:</strong> Uses a Multi-Output LightGBM model to forecast future price direction and volatility.</li>
-            <li><strong>In-Depth Technical Analysis:</strong> Automated calculation and visualization of crucial indicators like RSI and MACD.</li>
-            <li><strong>Dynamic Market Sentiment:</strong> (Future Feature) Real-time news and social media sentiment analysis.</li>
-            <li><strong>Robust & Scalable:</strong> Built with a modern tech stack designed for performance and reliability.</li>
-        </ul>
-    </div>
-    """, unsafe_allow_html=True)
+    # ...existing code...
 
 def show_cheatsheet():
     st.markdown('<h2 class="sub-header">MarketVision Cheatsheet & Guide</h2>', unsafe_allow_html=True)
@@ -1027,27 +1002,15 @@ def show_cheatsheet():
             <li><strong>Dashboard:</strong> Get a quick overview of the current market status for the selected stock, including live price, daily change, and various price charts.</li>
             <li><strong>Live Predictions:</strong> This is the core feature. Select a prediction horizon (e.g., 1 day, 5 days) and click "Predict" to see what the AI model forecasts. The results will show the predicted direction, target price, and a recommended stop-loss.</li>
             <li><strong>Model Performance:</strong> View the historical performance metrics of the trained AI model, such as Accuracy for directional prediction and Mean Absolute Error for price targets. This helps you understand the model's reliability.</li>
-            <li><strong>Technical Analysis:</strong> Explore detailed charts of key technical indicators like RSI and MACD. This section provides the underlying data used by the model for its predictions.</li>
-            <li><strong>Find NSE Symbol:</strong> If you don't know a stock's symbol, use this tool to find it by typing the company's name.</li>
+    
+    
         </ul>
     </div>
     """, unsafe_allow_html=True)
     
-    st.markdown("""
-    <div style="padding: 1.5rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 2rem;">
-        <h4 style="color: #ecf0f1;">Find NSE Symbol</h4>
-        <p style="color: #bdc3c7;">Type a company name to get the correct NSE stock symbol. For example, try "Narayana Hrudayalaya" or "Tata Consultancy".</p>
-    </div>
-    """, unsafe_allow_html=True)
+    
 
-def find_nse_symbol_section():
-    st.markdown('<h2 class="sub-header">Find NSE Symbol</h2>', unsafe_allow_html=True)
-    st.markdown('<p style="color: #bdc3c7;">Type a company name to get the correct NSE stock symbol. For example, try "Narayana Hrudayalaya" or "Tata Consultancy".</p>', unsafe_allow_html=True)
-
-    symbol_map = {
-        'reliance industries': 'RELIANCE.NS',
-        'infosys': 'INFY.NS',
-        'tata consultancy services': 'TCS.NS',
+    # ...existing code...
         'hdfc bank': 'HDFCBANK.NS',
         'icici bank': 'ICICIBANK.NS',
         'state bank of india': 'SBIN.NS',
@@ -1101,29 +1064,7 @@ def find_nse_symbol_section():
         name = name.replace('  ', ' ').strip()
         return name
 
-    user_input = st.text_input("Enter company name:", "")
-    normalized_input = normalize(user_input)
-    match = None
-    if normalized_input:
-        for key in symbol_map:
-            if normalized_input == key:
-                match = symbol_map[key]
-                break
-        if not match:
-            for key in symbol_map:
-                if normalized_input in key:
-                    match = symbol_map[key]
-                    break
-        if not match:   
-            for key in symbol_map:
-                if any(word in key for word in normalized_input.split()):
-                    match = symbol_map[key]
-                    break
-    if user_input:
-        if match:
-            st.success(f"Symbol for '{user_input}': **{match}**")
-        else:
-            st.warning(f"No NSE symbol found for '{user_input}'. Please check the spelling or try another name.")
+    # Find NSE Symbol logic removed; now handled in dashboard and prediction sections.
 
 def main():
     st.markdown('<h1 class="main-header">MarketVision Pro</h1>', unsafe_allow_html=True)
@@ -1158,7 +1099,7 @@ def main():
     st.sidebar.markdown("### Choose Section")
     page = st.sidebar.radio(
         "Go to",
-        ["Dashboard", "Live Predictions", "Model Performance", "Technical Analysis", "Market Sentiment", "Find NSE Symbol", "Cheatsheet", "About"]
+        ["Dashboard", "Live Predictions", "Model Performance", "Market Sentiment", "Cheatsheet"]
     )
     
     live_data, hist_data = get_live_stock_data(st.session_state.selected_stock)
@@ -1169,16 +1110,10 @@ def main():
         show_advanced_predictions(model_data, metadata)
     elif page == "Model Performance":
         show_model_performance(metadata)
-    elif page == "Technical Analysis":
-        show_technical_analysis(hist_data)
     elif page == "Market Sentiment":
         show_market_sentiment(st.session_state.selected_stock)
-    elif page == "Find NSE Symbol":
-        find_nse_symbol_section()
     elif page == "Cheatsheet":
         show_cheatsheet()
-    elif page == "About":
-        show_about_page()
 
 if __name__ == "__main__":
     main() 
