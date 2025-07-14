@@ -848,13 +848,16 @@ def show_model_performance(metadata):
                 </div>
                 """, unsafe_allow_html=True)
 
-    # ...existing code...
+    # Load processed indicators for the selected symbol
+    selected_symbol = st.session_state.get('selected_stock', 'RELIANCE.NS')
+    indicators_path = os.path.join('data', 'processed', f'stock_{selected_symbol}_with_indicators.csv')
+    if os.path.exists(indicators_path):
+        df_with_indicators = pd.read_csv(indicators_path)
+        if 'rsi_14_day' in df_with_indicators.columns:
             latest_rsi = df_with_indicators['rsi_14_day'].iloc[-1]
-            
             rsi_color = "#ff0000" if latest_rsi > 70 else "#00ff00" if latest_rsi < 30 else "#ffffff"
             rsi_status = "Overbought" if latest_rsi > 70 else "Oversold" if latest_rsi < 30 else "Neutral"
             status_color = "#ff0000" if latest_rsi > 70 else "#00ff00" if latest_rsi < 30 else "#ffff00"
-            
             st.markdown(f"""
             <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e;">
                 <h3 style="color: #ecf0f1; margin: 0;">Current RSI (14-day)</h3>
@@ -862,21 +865,20 @@ def show_model_performance(metadata):
                 <p style="color: {status_color}; margin: 0; font-weight: bold;">{rsi_status}</p>
             </div>
             """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown('<h4>MACD Analysis</h4>', unsafe_allow_html=True)
-        if 'macd_line' in df_with_indicators.columns and 'macd_signal_line' in df_with_indicators.columns and not df_with_indicators['macd_line'].isnull().all():
-            latest_macd = df_with_indicators['macd_line'].iloc[-1]
-            latest_signal = df_with_indicators['macd_signal_line'].iloc[-1]
-            
-            macd_color = "#00ff00" if latest_macd > latest_signal else "#ff0000"
-            macd_status = "Bullish Crossover" if latest_macd > latest_signal else "Bearish Crossover"
-            
-            st.markdown(f"""
-            <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin: 1rem 0;">
-                <p style="color: {macd_color}; margin: 0; font-size: 1.2rem;">{macd_status}</p>
-            </div>
-            """, unsafe_allow_html=True)
+        with col2:
+            st.markdown('<h4>MACD Analysis</h4>', unsafe_allow_html=True)
+            if 'macd_line' in df_with_indicators.columns and 'macd_signal_line' in df_with_indicators.columns and not df_with_indicators['macd_line'].isnull().all():
+                latest_macd = df_with_indicators['macd_line'].iloc[-1]
+                latest_signal = df_with_indicators['macd_signal_line'].iloc[-1]
+                macd_color = "#00ff00" if latest_macd > latest_signal else "#ff0000"
+                macd_status = "Bullish Crossover" if latest_macd > latest_signal else "Bearish Crossover"
+                st.markdown(f"""
+                <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin: 1rem 0;">
+                    <p style="color: {macd_color}; margin: 0; font-size: 1.2rem;">{macd_status}</p>
+                </div>
+                """, unsafe_allow_html=True)
+    else:
+        st.warning(f"No processed indicator data found for {selected_symbol}.")
 
 def show_market_sentiment(symbol):
     st.markdown('<h2 class="sub-header">Market Sentiment Analysis</h2>', unsafe_allow_html=True)
