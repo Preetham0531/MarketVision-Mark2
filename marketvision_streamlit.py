@@ -1011,6 +1011,7 @@ def show_cheatsheet():
     
 
     # ...existing code...
+    symbol_map = {
         'hdfc bank': 'HDFCBANK.NS',
         'icici bank': 'ICICIBANK.NS',
         'state bank of india': 'SBIN.NS',
