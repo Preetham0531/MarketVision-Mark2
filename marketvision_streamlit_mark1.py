@@ -334,7 +334,7 @@ def suggest_symbol(user_input):
             return symbol
     
     return user_input
-
+col1, col2 = st.columns(2)col1, col2 = st.columns(2)col1, col2 = st.columns(2)col1, col2 = st.columns(2)col1, col2 = st.columns(2)
 @st.cache_resource
 def load_model_and_data():
     try:
