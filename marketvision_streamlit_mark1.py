@@ -334,7 +334,7 @@ def suggest_symbol(user_input):
             return symbol
     
     return user_input
-col1, col2 = st.columns(2)col1, col2 = st.columns(2)col1, col2 = st.columns(2)col1, col2 = st.columns(2)col1, col2 = st.columns(2)
+col1, col2 = st.columns(2)col1, col2 = st.columns(2)col1, col2 = st.columns(2)col1, col2 = st.columns(2)
 @st.cache_resource
 def load_model_and_data():
     try:
@@ -932,7 +932,7 @@ def show_model_details(metadata):
     ng>Cheatsheet:</strong> Access this guide anytime to understand the project architecture and how to use the app effectively.</li>
     st.markdown('<h3>Model Overview</h3>', unsafe_allow_html=True)
     
-    col1, col2 = st.columns(2)", unsafe_allow_html=True)
+    col1, col2 = st.columns(2)
     
     with col1:
         st.markdown(f"""
