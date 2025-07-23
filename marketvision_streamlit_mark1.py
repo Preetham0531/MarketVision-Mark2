@@ -39,6 +39,80 @@ import sys
 from datetime import datetime, timedelta
 import warnings
 import yfinance as yf
+import hashlib
+import json
+
+USERS_FILE = "users.json"
+
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def load_users():
+    if not os.path.exists(USERS_FILE):
+        return {}
+    with open(USERS_FILE, "r") as f:
+        return json.load(f)
+
+def save_users(users):
+    with open(USERS_FILE, "w") as f:
+        json.dump(users, f)
+
+def register_user(name, gmail, password):
+    users = load_users()
+    gmail = gmail.lower()
+    if gmail in users:
+        return False, "Gmail already registered."
+    users[gmail] = {
+        "name": name,
+        "password": hash_password(password)
+    }
+    save_users(users)
+    return True, "Registration successful."
+
+def authenticate_user(gmail, password):
+    users = load_users()
+    gmail = gmail.lower()
+    if gmail not in users:
+        return False, "Account does not exist."
+    if users[gmail]["password"] != hash_password(password):
+        return False, "Incorrect password."
+    return True, users[gmail]["name"]
+
+def login_register_ui():
+    st.sidebar.markdown("## Login / Register")
+    action = st.sidebar.radio("Choose action", ["Login", "Register"])
+    if action == "Register":
+        name = st.sidebar.text_input("Name")
+        gmail = st.sidebar.text_input("Gmail (must end with @gmail.com)")
+        password = st.sidebar.text_input("Password", type="password")
+        if st.sidebar.button("Register"):
+            if not name or not gmail or not password:
+                st.sidebar.error("All fields required.")
+            elif not gmail.endswith("@gmail.com"):
+                st.sidebar.error("Gmail must end with @gmail.com")
+            else:
+                success, msg = register_user(name, gmail, password)
+                if success:
+                    st.sidebar.success(msg)
+                else:
+                    st.sidebar.error(msg)
+    else:
+        gmail = st.sidebar.text_input("Gmail")
+        password = st.sidebar.text_input("Password", type="password")
+        if st.sidebar.button("Login"):
+            success, result = authenticate_user(gmail, password)
+            if success:
+                st.session_state["logged_in"] = True
+                st.session_state["user_gmail"] = gmail.lower()
+                st.session_state["user_name"] = result
+                st.sidebar.success(f"Welcome, {result}!")
+            else:
+                st.sidebar.error(result)
+
+def require_login():
+    if not st.session_state.get("logged_in"):
+        st.warning("Please log in to use the app.")
+        st.stop()
 
 warnings.filterwarnings('ignore')
 
@@ -701,7 +775,7 @@ def show_advanced_dashboard(model_data, metadata, live_data, hist_data):
         st.plotly_chart(fig_candle, use_container_width=True)
     else:
         st.warning(f"No live data found for {st.session_state.selected_stock}. Please check the symbol and try again.")
-# ...existing code...
+
 def show_advanced_predictions(model_data, metadata):
     st.markdown('<h2 class="sub-header">Live Stock Predictions</h2>', unsafe_allow_html=True)
     
@@ -854,191 +928,122 @@ def show_model_details(metadata):
     
     if not metadata:
         st.error("Model metadata not available.")
-        return
-    
+        return>Market Sentiment:</strong> Analyze the latest market sentiment for the selected stock, including average sentiment score, social media mentions, and probability of price increase.</li>
+    ng>Cheatsheet:</strong> Access this guide anytime to understand the project architecture and how to use the app effectively.</li>
     st.markdown('<h3>Model Overview</h3>', unsafe_allow_html=True)
     
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns(2)", unsafe_allow_html=True)
     
     with col1:
         st.markdown(f"""
         <div style="padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 1rem;">
             <p style="color: #ecf0f1; margin: 0;"><strong>Model Type:</strong> <span style="color: #3498db;">{metadata.get('model_type', 'Unknown')}</span></p>
+        </div>NS',
+        """, unsafe_allow_html=True)': 'ICICIBANK.NS',
+        st.markdown(f"""ndia': 'SBIN.NS',
+        <div style="padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 1rem;">IARTL.NS',
+            <p style="color: #ecf0f1; margin: 0;"><strong>Training Date:</strong> <span style="color: #27ae60;">{metadata.get('training_date', 'Unknown')}</span></p>'NH.NS',
+        </div>EDDY.NS',
+        """, unsafe_allow_html=True)   'asian paints': 'ASIANPAINT.NS',
+        st.markdown(f"""    'bajaj finance': 'BAJFINANCE.NS',
+        <div style="padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 1rem;">i suzuki': 'MARUTI.NS',
+            <p style="color: #ecf0f1; margin: 0;"><strong>Test Size:</strong> <span style="color: #f39c12;">{metadata.get('test_size', 0) * 100:.1f}%</span></p>        'hindustan unilever': 'HINDUNILVR.NS',
         </div>
-        """, unsafe_allow_html=True)
-        st.markdown(f"""
-        <div style="padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 1rem;">
-            <p style="color: #ecf0f1; margin: 0;"><strong>Training Date:</strong> <span style="color: #27ae60;">{metadata.get('training_date', 'Unknown')}</span></p>
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown(f"""
-        <div style="padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 1rem;">
-            <p style="color: #ecf0f1; margin: 0;"><strong>Test Size:</strong> <span style="color: #f39c12;">{metadata.get('test_size', 0) * 100:.1f}%</span></p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown(f"""
-        <div style="padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 1rem;">
-            <p style="color: #ecf0f1; margin: 0;"><strong>Random State:</strong> <span style="color: #3498db;">{metadata.get('random_state', 'Unknown')}</span></p>
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown(f"""
-        <div style="padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 1rem;">
+        """, unsafe_allow_html=True)AN.NS',
+        'wipro': 'WIPRO.NS',
+    with col2:SBANK.NS',
+        st.markdown(f"""TECHM.NS',
+        <div style="padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 1rem;">EIND.NS',
+            <p style="color: #ecf0f1; margin: 0;"><strong>Random State:</strong> <span style="color: #3498db;">{metadata.get('random_state', 'Unknown')}</span></p>'POWERGRID.NS',
+        </div>LTRACEMCO.NS',
+        """, unsafe_allow_html=True)  'sun pharmaceutical': 'SUNPHARMA.NS',
+        st.markdown(f"""    'hcl technologies': 'HCLTECH.NS',
+        <div style="padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 1rem;">': 'BAJAJFINSV.NS',
             <p style="color: #ecf0f1; margin: 0;"><strong>Total Features:</strong> <span style="color: #27ae60;">{len(metadata.get('feature_names', []))}</span></p>
-        </div>
+        </div>es': 'BRITANNIA.NS',
         """, unsafe_allow_html=True)
-        st.markdown(f"""
-        <div style="padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 1rem;">
-            <p style="color: #ecf0f1; margin: 0;"><strong>Output Targets:</strong> <span style="color: #f39c12;">{len(metadata.get('regression_labels', [])) + len(metadata.get('classification_labels', []))}</span></p>
-        </div>
-        """, unsafe_allow_html=True)
-
+        st.markdown(f"""IA.NS',
+        <div style="padding: 1rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 1rem;">   'divis laboratories': 'DIVISLAB.NS',
+            <p style="color: #ecf0f1; margin: 0;"><strong>Output Targets:</strong> <span style="color: #f39c12;">{len(metadata.get('regression_labels', [])) + len(metadata.get('classification_labels', []))}</span></p>    'eicher motors': 'EICHERMOT.NS',
+        </div>m industries': 'GRASIM.NS',
+        """, unsafe_allow_html=True)        'heromotocorp': 'HEROMOTOCO.NS',
+BK.NS',
     # ...existing code...
 def show_cheatsheet():
-    st.markdown('<h2 class="sub-header">MarketVision Cheatsheet & Guide</h2>', unsafe_allow_html=True)
-
-    st.markdown("""
+    st.markdown('<h2 class="sub-header">MarketVision Cheatsheet & Guide</h2>', unsafe_allow_html=True)    'shree cement': 'SHREECEM.NS',
+'siemens': 'SIEMENS.NS',
+    st.markdown("""EL.NS',
     <div style="padding: 1.5rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 1rem;">
         <p style="color: #ecf0f1;">Welcome to the MarketVision guide. This cheatsheet explains the project's architecture and how to use the app effectively.</p>
-    </div>
+    </div>ANIPORTS.NS',
     """, unsafe_allow_html=True)
 
     st.markdown('<h3>Project Architecture</h3>', unsafe_allow_html=True)
     st.markdown("""
-    <div style="padding: 1.5rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 2rem;">
-        <p style="color: #bdc3c7;">The application operates in a structured workflow:</p>
-        <ol style="color: #bdc3c7;">
+    <div style="padding: 1.5rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 2rem;">        'hdfc life': 'HDFCLIFE.NS',
+        <p style="color: #bdc3c7;">The application operates in a structured workflow:</p>consumer': 'TATACONSUM.NS',
+        <ol style="color: #bdc3c7;">        'upl': 'UPL.NS',
             <li><strong>Data Collection:</strong> Live market data (prices, volume) is fetched using the yfinance library. Fundamental data and news sentiment are intended to be fetched via premium APIs (FMP, NewsAPI).</li>
             <li><strong>Feature Engineering:</strong> The application calculates a suite of technical indicators (RSI, MACD, Bollinger Bands, etc.) from the raw price data. These indicators serve as features for the machine learning model.</li>
             <li><strong>Model Training (Offline):</strong> A Multi-Output LightGBM model is trained on a comprehensive historical dataset. This model learns the complex relationships between technical indicators, market context, and future price movements. It's trained to predict multiple targets simultaneously: price direction (up/down), target price, and stop-loss levels.</li>
-            <li><strong>Live Prediction:</strong> In the app, the live data is processed to generate the same features the model was trained on. This feature set is then fed into the pre-trained model to generate real-time predictions.</li>
-            <li><strong>Visualization:</strong> All data, analysis, and predictions are presented through an interactive dashboard built with Streamlit and Plotly.</li>
+            <li><strong>Live Prediction:</strong> In the app, the live data is processed to generate the same features the model was trained on. This feature set is then fed into the pre-trained model to generate real-time predictions.</li>def normalize(name):
+            <li><strong>Visualization:</strong> All data, analysis, and predictions are presented through an interactive dashboard built with Streamlit and Plotly.</li>).replace('ltd', '').replace('limited', '').replace('.', '').replace('&', 'and')
         </ol>
     </div>
     """, unsafe_allow_html=True)
-
+ashboard and prediction sections.
     st.markdown('<h3>How to Use This App</h3>', unsafe_allow_html=True)
     st.markdown("""
     <div style="padding: 1.5rem; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 10px; border: 1px solid #34495e; margin-bottom: 2rem;">
         <ul style="color: #bdc3c7;">
-            <li><strong>Select a Stock:</strong> Use the sidebar to either type a stock symbol (e.g., 'TCS.NS') or choose a company from the NIFTY50 dropdown list.</li>
-            <li><strong>Dashboard:</strong> Get a quick overview of the current market status for the selected stock, including live price, daily change, and various price charts.</li>
+            <li><strong>Select a Stock:</strong> Use the sidebar to either type a stock symbol (e.g., 'TCS.NS') or choose a company from the NIFTY50 dropdown list.</li>t.stop()
+            <li><strong>Dashboard:</strong> Get a quick overview of the current market status for the selected stock, including live price, daily change, and various price charts.</li> Pro</h1>', unsafe_allow_html=True)
             <li><strong>Live Predictions:</strong> This is the core feature. Select a prediction horizon (e.g., 1 day, 5 days) and click "Predict" to see what the AI model forecasts. The results will show the predicted direction, target price, and a recommended stop-loss.</li>
-            <li><strong>Model Performance:</strong> View the historical performance metrics of the trained AI model, such as Accuracy for directional prediction and Mean Absolute Error for price targets. This helps you understand the model's reliability.</li>
-    
-    
+            <li><strong>Model Performance:</strong> View the historical performance metrics of the trained AI model, such as Accuracy for directional prediction and Mean Absolute Error for price targets. This helps you understand the model's reliability.</li>model_data, metadata, model_loaded = load_model_and_data()
         </ul>
-    </div>
+    </div>st.sidebar.title("Navigation")
     """, unsafe_allow_html=True)
-    
+    "### Select Stock")
     
 
-    # ...existing code...
-    symbol_map = {
+    # ...existing code... INFY.NS)", 
+    symbol_map = {elected_stock,
         'hdfc bank': 'HDFCBANK.NS',
         'icici bank': 'ICICIBANK.NS',
         'state bank of india': 'SBIN.NS',
-        'bharti airtel': 'BHARTIARTL.NS',
-        'narayana hrudayalaya': 'NH.NS',
-        "dr. reddy's labs": 'DRREDDY.NS',
-        'asian paints': 'ASIANPAINT.NS',
-        'bajaj finance': 'BAJFINANCE.NS',
-        'maruti suzuki': 'MARUTI.NS',
+        'bharti airtel': 'BHARTIARTL.NS',sidebar.selectbox(
+        'narayana hrudayalaya': 'NH.NS',",
+        "dr. reddy's labs": 'DRREDDY.NS',OCK_SYMBOLS.keys()),
+        'asian paints': 'ASIANPAINT.NS',    format_func=lambda x: f"{x} ({STOCK_SYMBOLS[x]})",
+        'bajaj finance': 'BAJFINANCE.NS',x=list(STOCK_SYMBOLS.values()).index(st.session_state.selected_stock) if st.session_state.selected_stock in STOCK_SYMBOLS.values() else 0,
+        'maruti suzuki': 'MARUTI.NS',pany"
         'hindustan unilever': 'HINDUNILVR.NS',
         'larsen & toubro': 'LT.NS',
-        'titan': 'TITAN.NS',
-        'wipro': 'WIPRO.NS',
-        'axis bank': 'AXISBANK.NS',
-        'tech mahindra': 'TECHM.NS',
+        'titan': 'TITAN.NS',ted_stock:
+        'wipro': 'WIPRO.NS',e.selected_stock = suggest_symbol(typed_symbol)
+        'axis bank': 'AXISBANK.NS',!= st.session_state.selected_stock:
+        'tech mahindra': 'TECHM.NS',_stock = STOCK_SYMBOLS[selected_company]
         'nestle india': 'NESTLEIND.NS',
-        'power grid': 'POWERGRID.NS',
+        'power grid': 'POWERGRID.NS',div class='stock-suggestion'>Selected: {st.session_state.selected_stock}</div>", unsafe_allow_html=True)
         'ultratech cement': 'ULTRACEMCO.NS',
-        'sun pharmaceutical': 'SUNPHARMA.NS',
+        'sun pharmaceutical': 'SUNPHARMA.NS',n("### Choose Section")
         'hcl technologies': 'HCLTECH.NS',
         'bajaj finserv': 'BAJAJFINSV.NS',
-        'tata motors': 'TATAMOTORS.NS',
+        'tata motors': 'TATAMOTORS.NS', "Market Sentiment", "Cheatsheet"]
         'britannia industries': 'BRITANNIA.NS',
         'cipla': 'CIPLA.NS',
-        'coal india': 'COALINDIA.NS',
+        'coal india': 'COALINDIA.NS',ive_data, hist_data = get_live_stock_data(st.session_state.selected_stock)
         'divis laboratories': 'DIVISLAB.NS',
         'eicher motors': 'EICHERMOT.NS',
         'grasim industries': 'GRASIM.NS',
-        'heromotocorp': 'HEROMOTOCO.NS',
-        'indusind bank': 'INDUSINDBK.NS',
-        'mahindra & mahindra': 'M&M.NS',
+        'heromotocorp': 'HEROMOTOCO.NS',elif page == "Live Predictions":
+        'indusind bank': 'INDUSINDBK.NS', metadata)
+        'mahindra & mahindra': 'M&M.NS',":
         'ongc': 'ONGC.NS',
         'shree cement': 'SHREECEM.NS',
-        'siemens': 'SIEMENS.NS',
+        'siemens': 'SIEMENS.NS',ssion_state.selected_stock)
         'tata steel': 'TATASTEEL.NS',
-        'jsw steel': 'JSWSTEEL.NS',
+        'jsw steel': 'JSWSTEEL.NS',how_cheatsheet()
         'adani green': 'ADANIGREEN.NS',
         'adani ports': 'ADANIPORTS.NS',
-        'adani enterprises': 'ADANIENT.NS',
-        'bpcl': 'BPCL.NS',
-        'itc': 'ITC.NS',
-        'kotak mahindra bank': 'KOTAKBANK.NS',
-        'hdfc life': 'HDFCLIFE.NS',
-        'tataconsumer': 'TATACONSUM.NS',
-        'upl': 'UPL.NS',
-        'vedanta': 'VEDL.NS',
-    }
-
-    def normalize(name):
-        name = name.lower().replace('ltd', '').replace('limited', '').replace('.', '').replace('&', 'and')
-        name = name.replace('  ', ' ').strip()
-        return name
-
-    # Find NSE Symbol logic removed; now handled in dashboard and prediction sections.
-
-def main():
-    st.markdown('<h1 class="main-header">MarketVision Pro</h1>', unsafe_allow_html=True)
-    
-    model_data, metadata, model_loaded = load_model_and_data()
-    
-    st.sidebar.title("Navigation")
-    
-    st.sidebar.markdown("### Select Stock")
-    
-    typed_symbol = st.sidebar.text_input(
-        "Type Stock Symbol (e.g., INFY.NS)", 
-        st.session_state.selected_stock,
-        key="typed_stock"
-    )
-
-    selected_company = st.sidebar.selectbox(
-        "Or Select from NIFTY50",
-        options=list(STOCK_SYMBOLS.keys()),
-        format_func=lambda x: f"{x} ({STOCK_SYMBOLS[x]})",
-        index=list(STOCK_SYMBOLS.values()).index(st.session_state.selected_stock) if st.session_state.selected_stock in STOCK_SYMBOLS.values() else 0,
-        key="selected_company"
-    )
-
-    if typed_symbol != st.session_state.selected_stock:
-        st.session_state.selected_stock = suggest_symbol(typed_symbol)
-    elif STOCK_SYMBOLS[selected_company] != st.session_state.selected_stock:
-        st.session_state.selected_stock = STOCK_SYMBOLS[selected_company]
-
-    st.sidebar.markdown(f"<div class='stock-suggestion'>Selected: {st.session_state.selected_stock}</div>", unsafe_allow_html=True)
-    
-    st.sidebar.markdown("### Choose Section")
-    page = st.sidebar.radio(
-        "Go to",
-        ["Dashboard", "Live Predictions", "Model Performance", "Market Sentiment", "Cheatsheet"]
-    )
-    
-    live_data, hist_data = get_live_stock_data(st.session_state.selected_stock)
-
-    if page == "Dashboard":
-        show_advanced_dashboard(model_data, metadata, live_data, hist_data)
-    elif page == "Live Predictions":
-        show_advanced_predictions(model_data, metadata)
-    elif page == "Model Performance":
-        show_model_performance(metadata)
-    elif page == "Market Sentiment":
-        show_market_sentiment(st.session_state.selected_stock)
-    elif page == "Cheatsheet":
-        show_cheatsheet()
-
-if __name__ == "__main__":
-    main()
+        'adani enterprises': 'ADANIENT.NS',main()        'bpcl': 'BPCL.NS',        'itc': 'ITC.NS',        'kotak mahindra bank': 'KOTAKBANK.NS',        'hdfc life': 'HDFCLIFE.NS',        'tataconsumer': 'TATACONSUM.NS',        'upl': 'UPL.NS',        'vedanta': 'VEDL.NS',    }    def normalize(name):        name = name.lower().replace('ltd', '').replace('limited', '').replace('.', '').replace('&', 'and')        name = name.replace('  ', ' ').strip()        return name    # Find NSE Symbol logic removed; now handled in dashboard and prediction sections.def main():    login_register_ui()    if not st.session_state.get("logged_in"):        st.stop()    st.markdown('<h1 class="main-header">MarketVision Pro</h1>', unsafe_allow_html=True)        model_data, metadata, model_loaded = load_model_and_data()        st.sidebar.title("Navigation")        st.sidebar.markdown("### Select Stock")        typed_symbol = st.sidebar.text_input(        "Type Stock Symbol (e.g., INFY.NS)",         st.session_state.selected_stock,        key="typed_stock"    )    selected_company = st.sidebar.selectbox(        "Or Select from NIFTY50",        options=list(STOCK_SYMBOLS.keys()),        format_func=lambda x: f"{x} ({STOCK_SYMBOLS[x]})",        index=list(STOCK_SYMBOLS.values()).index(st.session_state.selected_stock) if st.session_state.selected_stock in STOCK_SYMBOLS.values() else 0,        key="selected_company"    )    if typed_symbol != st.session_state.selected_stock:        st.session_state.selected_stock = suggest_symbol(typed_symbol)    elif STOCK_SYMBOLS[selected_company] != st.session_state.selected_stock:        st.session_state.selected_stock = STOCK_SYMBOLS[selected_company]    st.sidebar.markdown(f"<div class='stock-suggestion'>Selected: {st.session_state.selected_stock}</div>", unsafe_allow_html=True)        st.sidebar.markdown("### Choose Section")    page = st.sidebar.radio(        "Go to",        ["Dashboard", "Live Predictions", "Model Performance", "Market Sentiment", "Cheatsheet"]    )        live_data, hist_data = get_live_stock_data(st.session_state.selected_stock)    if page == "Dashboard":        show_advanced_dashboard(model_data, metadata, live_data, hist_data)    elif page == "Live Predictions":        show_advanced_predictions(model_data, metadata)    elif page == "Model Performance":        show_model_performance(metadata)    elif page == "Market Sentiment":        show_market_sentiment(st.session_state.selected_stock)    elif page == "Cheatsheet":        show_cheatsheet()if __name__ == "__main__":    main()
